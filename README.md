@@ -913,7 +913,6 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=votre-google-maps-api-key
 
 - **Email**: support@citefix.bj
 - **Documentation**: https://docs.citefix.bj
-- **Issues**: https://github.com/votre-username/citefix/issues
 
 ## 📄 Licence
 
