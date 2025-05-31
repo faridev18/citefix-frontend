@@ -142,7 +142,7 @@ export default function RecentReports() {
                 <span className="text-xs text-muted-foreground">{report.date}</span>
               </div>
             </CardContent>
-            <CardFooter className="p-4 pt-0 flex justify-between border-t">
+            <CardFooter className="p-4 pt-4 flex justify-between border-t">
               <div className="flex items-center text-xs text-muted-foreground">
                 <MessageSquare className="h-3 w-3 mr-1" />
                 <span>{report.comments}</span>
