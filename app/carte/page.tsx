@@ -8,16 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, AlertTriangle, Lightbulb, Trash2, Shield } from "lucide-react"
 import dynamic from "next/dynamic"
+// import MapComponent from "@/components/map-component"
 
 // Import dynamique de la carte pour éviter les erreurs SSR
-const MapComponent = dynamic(() => import("@/components/map-component"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[600px] bg-muted/30 rounded-lg flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
-    </div>
-  ),
-})
+const MapComponent = dynamic(
+  () => import('@/components/map-component'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-muted/30 rounded-lg flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
+      </div>
+    )
+  }
+)
 
 // Données fictives pour les signalements
 const reportsData = [
@@ -192,8 +196,14 @@ export default function MapPage() {
 
         <div className="lg:col-span-2">
           <Card className="h-full">
-            <CardContent className="p-4 h-[700px]">
-              <MapComponent reports={filteredReports} />
+            <CardContent className="p-0 h-[700px] relative"> {/* p-0 important */}
+              <div className="absolute inset-0"> {/* Conteneur absolu */}
+                <MapComponent
+                  reports={filteredReports}
+                  center={[45.764043, 4.835659]}
+                  zoom={14}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -12,7 +12,7 @@ export default function Home() {
     <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-b from-primary/20 to-background py-16 md:py-24">
-        <div className="container m-auto flex flex-col md:flex-row items-center gap-8 md:gap-16">
+        <div className="container  m-auto flex flex-col md:flex-row items-center gap-8 md:gap-16">
           <div className="flex-1 space-y-6">
             <Badge variant="outline" className="px-3 py-1 text-sm">
               Plateforme citoyenne
@@ -36,16 +36,14 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          <div className="flex-1 relative">
-            <div className="relative h-[400px] w-full animate-float">
-              <Image
-                src="/header.png"
-                alt="CitéFix illustration"
-                fill
-                className="object-contain rounded"
-                priority
-              />
-            </div>
+          <div className="flex-1 w-full min-h-[300px] md:h-[400px] relative">
+            <Image
+              src="/header.png"
+              alt="CitéFix illustration"
+              fill
+              className="object-contain animate-float"
+              priority
+            />
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background to-transparent" />
@@ -128,7 +126,7 @@ export default function Home() {
 
       {/* Recent Reports */}
       <section className="py-16 container m-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between gap-5 flex-wrap items-center mb-8">
           <h2 className="text-3xl font-bold">Signalements récents</h2>
           <Button variant="outline" asChild>
             <Link href="/carte">
