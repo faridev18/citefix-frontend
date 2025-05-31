@@ -15,7 +15,8 @@ CitéFix est une application web moderne permettant aux citoyens de signaler des
 
 ## 📁 Structure du Projet
 
-\`\`\`
+<pre>
+
 app/
 ├── (auth)/
 │   ├── connexion/          # Page de connexion
@@ -58,7 +59,8 @@ components/
 ├── stats-section.tsx      # Section statistiques
 ├── mode-toggle.tsx        # Basculeur de thème
 └── theme-provider.tsx     # Fournisseur de thème
-\`\`\`
+</pre>
+
 
 ## 🗄️ Schéma de Base de Données MongoDB
 
