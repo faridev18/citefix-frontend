@@ -141,7 +141,7 @@ Stocke les informations des utilisateurs (citoyens, techniciens, administrateurs
 #### 2. Collection \`reports\`
 Stocke tous les signalements des citoyens.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   title: "Lampadaire cassé devant l'école primaire",
@@ -214,12 +214,12 @@ Stocke tous les signalements des citoyens.
     resolvedAt: null
   }
 }
-\`\`\`
+</pre>
 
 #### 3. Collection \`interventions\`
 Gère les interventions techniques pour résoudre les signalements.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   reportId: ObjectId("..."),
@@ -301,12 +301,12 @@ Gère les interventions techniques pour résoudre les signalements.
     updatedAt: ISODate("2025-06-01T10:30:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 4. Collection \`comments\`
 Commentaires des utilisateurs sur les signalements.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   reportId: ObjectId("..."),
@@ -340,12 +340,12 @@ Commentaires des utilisateurs sur les signalements.
     updatedAt: ISODate("2025-05-31T14:30:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 5. Collection \`notifications\`
 Système de notifications pour les utilisateurs.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   userId: ObjectId("..."),
@@ -388,12 +388,12 @@ Système de notifications pour les utilisateurs.
     scheduledFor: ISODate("2025-05-31T14:30:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 6. Collection \`votes\`
 Votes de confirmation ou contestation des signalements.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   reportId: ObjectId("..."),
@@ -417,12 +417,12 @@ Votes de confirmation ou contestation des signalements.
     createdAt: ISODate("2025-05-31T15:00:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 7. Collection \`categories\`
 Catégories de signalements avec leurs configurations.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   name: "éclairage",
@@ -470,12 +470,12 @@ Catégories de signalements avec leurs configurations.
     updatedAt: ISODate("2024-01-01T00:00:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 8. Collection \`zones\`
 Zones géographiques avec leurs responsables.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   name: "centre-ville",
@@ -519,12 +519,12 @@ Zones géographiques avec leurs responsables.
     updatedAt: ISODate("2025-05-31T00:00:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 9. Collection \`analytics\`
 Données analytiques pour les rapports et statistiques.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   date: ISODate("2025-05-31T00:00:00Z"),
@@ -573,12 +573,12 @@ Données analytiques pour les rapports et statistiques.
     createdAt: ISODate("2025-06-01T00:00:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 10. Collection \`settings\`
 Configuration globale de l'application.
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   key: "app_config",
@@ -626,11 +626,11 @@ Configuration globale de l'application.
     updatedAt: ISODate("2025-05-31T00:00:00Z")
   }
 }
-\`\`\`
+</pre>
 
 ### Index Recommandés
 
-\`\`\`javascript
+<pre>
 // Collection users
 db.users.createIndex({ "email": 1 }, { unique: true })
 db.users.createIndex({ "role": 1, "status": 1 })
@@ -660,7 +660,7 @@ db.votes.createIndex({ "reportId": 1, "userId": 1 }, { unique: true })
 
 // Collection analytics
 db.analytics.createIndex({ "date": 1, "type": 1 })
-\`\`\`
+</pre>
 
 ## 🔗 Relations Entre Collections
 
@@ -675,7 +675,7 @@ db.analytics.createIndex({ "date": 1, "type": 1 })
 ## 📊 Exemples de Requêtes Courantes
 
 ### 1. Trouver tous les signalements dans un rayon de 500m
-\`\`\`javascript
+<pre>
 db.reports.find({
   "location.coordinates": {
     $near: {
@@ -687,17 +687,17 @@ db.reports.find({
     }
   }
 })
-\`\`\`
+</pre>
 
 ### 2. Trouver tous les signalements d'un utilisateur
-\`\`\`javascript
+<pre>
 db.reports.find({
   "citizen.userId": ObjectId("...")
 })
-\`\`\`
+</pre>
 
 ### 3. Trouver les interventions planifiées pour un technicien
-\`\`\`javascript
+<pre>
 db.interventions.find({
   "technicianId": ObjectId("..."),
   "status": "scheduled",
@@ -706,10 +706,10 @@ db.interventions.find({
     $lt: ISODate("2025-06-02T00:00:00Z")
   }
 })
-\`\`\`
+</pre>
 
 ### 4. Statistiques par catégorie
-\`\`\`javascript
+<pre>
 db.reports.aggregate([
   { $group: {
     _id: "$category",
@@ -721,15 +721,15 @@ db.reports.aggregate([
     }
   }}
 ])
-\`\`\`
+</pre>
 
 ### 5. Notifications non lues d'un utilisateur
-\`\`\`javascript
+<pre>
 db.notifications.find({
   "userId": ObjectId("..."),
   "read": false
 }).sort({ "createdAt": -1 })
-\`\`\`
+</pre>
 
 ## 🚀 Installation et Démarrage
 
@@ -739,7 +739,7 @@ db.notifications.find({
 - npm ou yarn
 
 ### Installation
-\`\`\`bash
+</pre>bash
 # Cloner le projet
 git clone https://github.com/votre-username/citefix.git
 cd citefix
@@ -753,10 +753,10 @@ cp .env.example .env.local
 
 # Démarrer en mode développement
 npm run dev
-\`\`\`
+</pre>
 
 ### Variables d'Environnement
-\`\`\`env
+</pre>env
 # Base de données
 MONGODB_URI=mongodb://localhost:27017/citefix
 # ou pour MongoDB Atlas
@@ -779,7 +779,7 @@ PUSHER_SECRET=votre-pusher-secret
 
 # Cartes
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=votre-google-maps-api-key
-\`\`\`
+</pre>
 
 ## 📱 Fonctionnalités
 
