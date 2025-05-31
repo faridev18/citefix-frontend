@@ -69,7 +69,7 @@ components/
 #### 1. Collection \`users\`
 Stocke les informations des utilisateurs (citoyens, techniciens, administrateurs).
 
-\`\`\`javascript
+<pre>
 {
   _id: ObjectId("..."),
   name: "Fatou Diarra",
@@ -136,7 +136,7 @@ Stocke les informations des utilisateurs (citoyens, techniciens, administrateurs
     lastActive: ISODate("2025-05-31T14:30:00Z")
   }
 }
-\`\`\`
+</pre>
 
 #### 2. Collection \`reports\`
 Stocke tous les signalements des citoyens.
