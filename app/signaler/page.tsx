@@ -1,26 +1,17 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { AlertTriangle, Camera, Lightbulb, MapPin, Shield, Trash2 } from "lucide-react"
-import dynamic from "next/dynamic"
-
-// Import dynamique de la carte pour éviter les erreurs SSR
-const MapComponent = dynamic(() => import("@/components/map-component"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[300px] bg-muted/30 rounded-lg flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
-    </div>
-  ),
-})
+import { AlertTriangle, Camera, Lightbulb, MapPin, Shield, Trash2, LocateFixed } from "lucide-react"
+import toast from "react-hot-toast"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+import { useRouter } from "next/navigation"
 
 export default function ReportPage() {
   const [title, setTitle] = useState("")
@@ -30,71 +21,195 @@ export default function ReportPage() {
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [location, setLocation] = useState<[number, number] | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const mapRef = useRef<HTMLDivElement>(null)
+  const leafletMapRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
+  const router = useRouter()
 
   // Gérer l'upload d'images
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
       setImages([...images, ...newFiles])
-
-      // Créer des URLs pour la prévisualisation
       const newUrls = newFiles.map((file) => URL.createObjectURL(file))
       setPreviewUrls([...previewUrls, ...newUrls])
     }
   }
+
+  useEffect(() => {
+    // Check dès le montage du composant
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      // Redirige vers la page login instantanément
+      router.replace("/connexion")
+    }
+  }, [router])
 
   // Supprimer une image
   const removeImage = (index: number) => {
     const newImages = [...images]
     newImages.splice(index, 1)
     setImages(newImages)
-
     const newUrls = [...previewUrls]
-    URL.revokeObjectURL(newUrls[index]) // Libérer l'URL
+    URL.revokeObjectURL(newUrls[index])
     newUrls.splice(index, 1)
     setPreviewUrls(newUrls)
   }
 
-  // Gérer la soumission du formulaire
-  const handleSubmit = (e: React.FormEvent) => {
+  // Récupérer la géolocalisation
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("La géolocalisation n'est pas supportée par ce navigateur.")
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation([pos.coords.latitude, pos.coords.longitude])
+        toast.success("Localisation récupérée !")
+      },
+      () => toast.error("Impossible d'obtenir la localisation."),
+      { enableHighAccuracy: true }
+    )
+  }
+
+useEffect(() => {
+  if (leafletMapRef.current || !mapRef.current) return;
+
+  leafletMapRef.current = L.map(mapRef.current).setView([6.37, 2.42], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(leafletMapRef.current);
+
+  // Gestion du clic sur la carte
+  leafletMapRef.current.on("click", function (e: L.LeafletMouseEvent) {
+    if (!leafletMapRef.current) return;
+    
+    const { lat, lng } = e.latlng;
+    setLocation([lat, lng]);
+    
+    const customIcon = L.divIcon({
+      className: "custom-marker",
+      html: `<div style="background:#6366f1;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center">
+               <div style="width:8px;height:8px;background:white;border-radius:50%"></div>
+             </div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+
+    if (markerRef.current) {
+      leafletMapRef.current.removeLayer(markerRef.current);
+    }
+
+    markerRef.current = L.marker([lat, lng], { icon: customIcon })
+      .addTo(leafletMapRef.current)
+      .bindPopup("Position sélectionnée")
+      .openPopup();
+
+    leafletMapRef.current.setView([lat, lng], leafletMapRef.current.getZoom());
+    toast.success(`Position sélectionnée : ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  });
+
+  return () => {
+    if (leafletMapRef.current) {
+      leafletMapRef.current.remove();
+      leafletMapRef.current = null;
+      markerRef.current = null;
+    }
+  };
+}, []);
+
+  // Gérer le marker après initialisation
+  useEffect(() => {
+    if (!leafletMapRef.current) return
+    if (!location) {
+      if (markerRef.current) {
+        leafletMapRef.current.removeLayer(markerRef.current)
+        markerRef.current = null
+      }
+      return
+    }
+    // Si marker déjà existant, on le déplace :
+    if (markerRef.current) {
+      markerRef.current.setLatLng(location)
+    } else {
+      markerRef.current = L.marker(location, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="background:#6366f1;width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px #0002"></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(leafletMapRef.current)
+    }
+    leafletMapRef.current.setView(location, 17)
+  }, [location])
+
+
+  // Gérer la soumission du formulaire (identique à avant)
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
-
-    setTimeout(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      toast.error("Veuillez vous connecter pour envoyer un signalement.")
       setIsSubmitting(false)
-      // Show success message
-      alert("Signalement envoyé avec succès ! Vous allez être redirigé vers vos signalements.")
-
-      // Reset form
-      setTitle("")
-      setDescription("")
-      setCategory("")
-      setImages([])
-      setPreviewUrls([])
-      setLocation(null)
-
-      // Redirect to user reports
-      setTimeout(() => {
-        window.location.href = "/mes-signalements"
-      }, 2000)
-    }, 1500)
+      return
+    }
+    const formData = new FormData()
+    formData.append("title", title)
+    formData.append("description", description)
+    formData.append("category", category)
+    if (location) {
+      // Inverse ici !
+      formData.append(
+        "location",
+        JSON.stringify({ coordinates: [location[1], location[0]] }) // [lng, lat]
+      )
+    }
+    images.forEach((file) => {
+      formData.append("media", file)
+    })
+    try {
+      const res = await fetch("http://localhost:3001/api/reports", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success("Signalement envoyé avec succès !")
+        setTitle("")
+        setDescription("")
+        setCategory("")
+        setImages([])
+        setPreviewUrls([])
+        setLocation(null)
+        setTimeout(() => {
+          window.location.href = "/mes-signalements"
+        }, 1500)
+      } else {
+        toast.error(data.error || "Erreur lors de l’envoi")
+      }
+    } catch {
+      toast.error("Erreur réseau")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
 
   // Obtenir l'icône de la catégorie
   const getCategoryIcon = (categoryName: string) => {
     switch (categoryName.toLowerCase()) {
-      case "voirie":
-        return <AlertTriangle className="h-5 w-5" />
-      case "éclairage":
-        return <Lightbulb className="h-5 w-5" />
-      case "déchets":
-        return <Trash2 className="h-5 w-5" />
-      case "sécurité":
-        return <Shield className="h-5 w-5" />
-      default:
-        return null
+      case "voirie": return <AlertTriangle className="h-5 w-5" />
+      case "éclairage": return <Lightbulb className="h-5 w-5" />
+      case "déchets": return <Trash2 className="h-5 w-5" />
+      case "sécurité": return <Shield className="h-5 w-5" />
+      default: return null
     }
   }
+
 
   return (
     <div className="container m-auto py-8">
@@ -225,12 +340,23 @@ export default function ReportPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Localisation</CardTitle>
-                <CardDescription>Indiquez l&apos;emplacement du problème sur la carte</CardDescription>
+                <CardDescription>Utilisez la géolocalisation pour indiquer l&apos;emplacement du problème</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px] mb-4">
-                  <MapComponent reports={[]} />
-                </div>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={handleGetLocation}
+                  className="mb-4 flex items-center gap-2"
+                >
+                  <LocateFixed className="w-5 h-5" />
+                  Récupérer ma localisation
+                </Button>
+                {/* Style inline FORTEMENT recommandé pour la carte */}
+                <div
+                  ref={mapRef}
+                  style={{ height: "240px", width: "100%", borderRadius: 8, overflow: "hidden", border: "1px solid #eee", marginBottom: 12 }}
+                />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4" />
                   {location ? (
@@ -238,7 +364,7 @@ export default function ReportPage() {
                       Latitude: {location[0].toFixed(6)}, Longitude: {location[1].toFixed(6)}
                     </span>
                   ) : (
-                    <span>Cliquez sur la carte pour définir l&apos;emplacement</span>
+                    <span>Aucune position sélectionnée</span>
                   )}
                 </div>
               </CardContent>
@@ -285,6 +411,12 @@ export default function ReportPage() {
             </Card>
           </div>
         </div>
+        <div className="mt-6 flex justify-end">
+          <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
+            {isSubmitting ? "Envoi en cours..." : "Envoyer le signalement"}
+          </Button>
+        </div>
+
       </form>
     </div>
   )

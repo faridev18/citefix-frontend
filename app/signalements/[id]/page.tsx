@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,173 +11,184 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import {
-  AlertTriangle,
-  Lightbulb,
-  Trash2,
-  Shield,
-  MapPin,
-  ThumbsUp,
-  ThumbsDown,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  User,
-  Send,
+  AlertTriangle, Lightbulb, Trash2, Shield, MapPin, ThumbsUp, ThumbsDown,
+  Clock, CheckCircle2, XCircle, User, Send
 } from "lucide-react"
-import dynamic from "next/dynamic"
 import Image from "next/image"
+import toast from "react-hot-toast"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+import MiniMap from "@/components/minimap"
 
-// Import dynamique de la carte pour éviter les erreurs SSR
-const MapComponent = dynamic(() => import("@/components/map-component"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[300px] bg-muted/30 rounded-lg flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Chargement de la carte...</div>
-    </div>
-  ),
-})
 
-// Données fictives pour un signalement
-const reportData = {
-  id: "1",
-  title: "Lampadaire cassé devant l'école",
-  category: "éclairage",
-  description:
-    "Le lampadaire ne fonctionne plus depuis 3 jours, ce qui rend la zone dangereuse pour les enfants qui sortent de l'école en fin d'après-midi pendant la saison des pluies.",
-  location: {
-    address: "Rue des Écoles, Zogbo, Cotonou",
-    coordinates: [2.4204, 6.3696], // [longitude, latitude]
-  },
-  photos: ["/signalement1.jpg", "/signalement2.jpg"],
-  status_history: [
-    {
-      status: "Signalé",
-      date: "2025-05-30T12:00:00Z",
-      comment: "Signalement créé par l'utilisateur",
-    },
-    {
-      status: "Validé",
-      date: "2025-05-31T09:15:00Z",
-      comment: "Validé par l'autorité locale",
-    },
-  ],
-  current_status: "Validé",
-  citizen: {
-    name: "Fatou Diarra",
-    image: "/placeholder.svg?height=40&width=40",
-  },
-  interventions: [],
-  votes: {
-    confirmations: 5,
-    contestations: 0,
-  },
-  comments: [
-    {
-      author: {
-        name: "Service Technique",
-        image: "/placeholder.svg?height=40&width=40",
-        role: "authority",
-      },
-      text: "Merci pour votre signalement. Une équipe sera envoyée pour vérifier le problème.",
-      date: "2025-05-31T10:00:00Z",
-      private: false,
-    },
-    {
-      author: {
-        name: "Kofi Mensah",
-        image: "/placeholder.svg?height=40&width=40",
-        role: "citizen",
-      },
-      text: "J'ai aussi remarqué ce problème. C'est vraiment dangereux pour les enfants.",
-      date: "2025-05-31T14:30:00Z",
-      private: false,
-    },
-  ],
-  created_at: "2025-05-30T12:00:00Z",
-}
-
-// Fonction pour obtenir l'icône de la catégorie
-const getCategoryIcon = (category: string) => {
-  switch (category.toLowerCase()) {
-    case "voirie":
-      return <AlertTriangle className="h-5 w-5" />
-    case "éclairage":
-      return <Lightbulb className="h-5 w-5" />
-    case "déchets":
-      return <Trash2 className="h-5 w-5" />
-    case "sécurité":
-      return <Shield className="h-5 w-5" />
-    default:
-      return <AlertTriangle className="h-5 w-5" />
+const getCategoryIcon = (category) => {
+  switch (category?.toLowerCase()) {
+    case "voirie": return <AlertTriangle className="h-5 w-5" />
+    case "éclairage": return <Lightbulb className="h-5 w-5" />
+    case "déchets": return <Trash2 className="h-5 w-5" />
+    case "sécurité": return <Shield className="h-5 w-5" />
+    default: return <AlertTriangle className="h-5 w-5" />
   }
 }
 
-// Fonction pour obtenir la couleur du statut
-const getStatusColor = (status: string) => {
+const getStatusColor = (status) => {
   switch (status) {
-    case "Signalé":
-      return "bg-yellow-500"
-    case "Validé":
-      return "bg-blue-500"
-    case "Assigné":
-      return "bg-purple-500"
-    case "Intervention en cours":
-      return "bg-orange-500"
-    case "Terminé":
-      return "bg-green-500"
-    case "Résolu":
-      return "bg-green-600"
-    case "Rejeté":
-      return "bg-red-500"
-    default:
-      return "bg-gray-500"
+    case "Signalé": return "bg-yellow-500"
+    case "Validé": return "bg-blue-500"
+    case "Assigné": return "bg-purple-500"
+    case "Intervention en cours": return "bg-orange-500"
+    case "Terminé": return "bg-green-500"
+    case "Résolu": return "bg-green-600"
+    case "Rejeté": return "bg-red-500"
+    default: return "bg-gray-500"
   }
 }
 
-// Fonction pour formater la date
-const formatDate = (dateString: string) => {
+const formatDate = (dateString) => {
+  if (!dateString) return "-"
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
   }).format(date)
 }
 
 export default function ReportDetailPage() {
   const params = useParams()
   const reportId = params.id
-  const [report] = useState(reportData)
-  const [newComment, setNewComment] = useState("")
-  const [activeTab, setActiveTab] = useState("details")
+  const mapRef = useRef(null)
+  const markerRef = useRef(null)
+  const leafletRef = useRef(null)
 
-  // Gérer l'envoi d'un commentaire
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [newComment, setNewComment] = useState("")
+  const [activeTab, setActiveTab] = useState("photos")
+  const [voting, setVoting] = useState(false)
+
+  const UPLOAD_BASE_URL = "http://localhost:3001"
+
+  const getPhotoUrl = (photo) => {
+    if (!photo) return "/placeholder.svg"
+    if (photo.startsWith("http")) return photo
+    if (photo.startsWith("/uploads/")) return UPLOAD_BASE_URL + photo
+    if (photo.startsWith("data:")) return photo
+    return photo // fallback
+  }
+
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    fetch(`http://localhost:3001/api/reports/${reportId}`, {
+      headers: token ? { "Authorization": `Bearer ${token}` } : {}
+    })
+      .then(res => res.json())
+      .then(data => {
+        setReport(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [reportId])
+
+  // Affichage de la carte Leaflet
+  useEffect(() => {
+    if (!report || !report.location || !Array.isArray(report.location.coordinates)) return
+    if (!mapRef.current) return
+
+    // Format: [lng, lat]
+    const [lng, lat] = report.location.coordinates
+    const position = [lat, lng]
+
+    if (!leafletRef.current) {
+      leafletRef.current = L.map(mapRef.current).setView(position, 17)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(leafletRef.current)
+    } else {
+      leafletRef.current.setView(position, 17)
+      if (markerRef.current) markerRef.current.setLatLng(position)
+    }
+
+    if (!markerRef.current) {
+      markerRef.current = L.marker(position, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="background:#6366f1;width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px #0002"></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(leafletRef.current)
+    }
+
+    return () => {
+      // Cleanup quand on quitte la page ou change de report
+      if (leafletRef.current) {
+        leafletRef.current.remove()
+        leafletRef.current = null
+      }
+      markerRef.current = null
+    }
+  }, [report])
+
+  if (loading) return <div className="container m-auto py-8">Chargement...</div>
+  if (!report) return <div className="container m-auto py-8">Aucun signalement trouvé</div>
+
+  const statusOrder = ["Signalé", "Validé", "Assigné", "Intervention en cours", "Terminé", "Résolu"]
+  const progressIndex = statusOrder.indexOf(report.status || report.current_status)
+  const progressValue = progressIndex === -1 ? 0 : ((progressIndex + 1) / statusOrder.length) * 100
+
+  // Pour les images : media peut être tableau d'URL ou objet { url }
+  const mediaArray = Array.isArray(report.media)
+    ? report.media.map(m => (typeof m === "string" ? m : m?.url))
+    : []
+
+  // VOTE
+  const handleVote = async (type) => {
+    setVoting(true)
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      const res = await fetch(`http://localhost:3001/api/reports/${reportId}/vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ type }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // Affiche le message de l’API s’il existe
+        toast.error(data?.error || "Erreur lors du vote")
+        setVoting(false)
+        return
+      }
+      toast.success(type === "confirm" ? "Problème confirmé !" : "Contesté !")
+      setReport(data)
+    } catch {
+      toast.error("Erreur lors du vote")
+    }
+    setVoting(false)
+  }
+
+
+  // Ajout de commentaire simulé (adapter en POST si API dispo)
+  const handleCommentSubmit = (e) => {
     e.preventDefault()
     if (!newComment.trim()) return
-
-    // Simuler l'ajout d'un commentaire
-    alert("Commentaire ajouté avec succès !")
+    toast.success("Commentaire ajouté (simulé)")
     setNewComment("")
   }
 
-  // Calculer le pourcentage de progression
-  const calculateProgress = () => {
-    const statusOrder = ["Signalé", "Validé", "Assigné", "Intervention en cours", "Terminé", "Résolu"]
-    const currentIndex = statusOrder.indexOf(report.current_status)
-    return ((currentIndex + 1) / statusOrder.length) * 100
-  }
+
+
+
 
   return (
     <div className="container m-auto py-8">
       <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <a href="/carte" className="hover:text-primary">
-              Carte des signalements
-            </a>{" "}
+            <a href="/carte" className="hover:text-primary">Carte des signalements</a>
             &gt; Signalement #{reportId}
           </div>
           <h1 className="text-3xl font-bold">{report.title}</h1>
@@ -187,11 +196,11 @@ export default function ReportDetailPage() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             {getCategoryIcon(report.category)}
-            {report.category.charAt(0).toUpperCase() + report.category.slice(1)}
+            {report.category && report.category.charAt(0).toUpperCase() + report.category.slice(1)}
           </Badge>
           <Badge variant="secondary" className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${getStatusColor(report.current_status)}`} />
-            {report.current_status}
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(report.status || report.current_status)}`} />
+            {report.status || report.current_status}
           </Badge>
         </div>
       </div>
@@ -200,37 +209,36 @@ export default function ReportDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardContent className="p-0">
-              <Tabs defaultValue="photos" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="photos">Photos</TabsTrigger>
                   <TabsTrigger value="map">Carte</TabsTrigger>
                 </TabsList>
                 <TabsContent value="photos" className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {report.photos.map((photo, index) => (
-                      <div key={index} className="aspect-video relative rounded-md overflow-hidden border">
-                        <Image
-                          src={photo || "/placeholder.svg"}
-                          alt={`Photo ${index + 1} du signalement`}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ))}
+                    {mediaArray.length > 0 ? (
+                      mediaArray.map((photo, idx) =>
+                        photo ? (
+                          <div key={idx} className="aspect-video relative rounded-md overflow-hidden border">
+                            {/* Utilise le helper */}
+                            <Image
+                              src={getPhotoUrl(photo)}
+                              alt={`Photo ${idx + 1}`}
+                              fill
+                              className="object-cover"
+                            // loader ou crossOrigin si besoin pour certains cas
+                            />
+                          </div>
+
+                        ) : null
+                      )
+                    ) : (
+                      <div className="text-center text-muted-foreground">Aucune photo</div>
+                    )}
                   </div>
                 </TabsContent>
-                <TabsContent value="map" className="h-[300px]">
-                  <MapComponent
-                    reports={[
-                      {
-                        id: report.id,
-                        title: report.title,
-                        category: report.category,
-                        status: report.current_status,
-                        location: report.location.coordinates,
-                      },
-                    ]}
-                  />
+                <TabsContent value="map" className="p-0">
+                  <MiniMap coordinates={report.location.coordinates} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -249,12 +257,17 @@ export default function ReportDetailPage() {
                 <h3 className="font-medium mb-2">Localisation</h3>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>{report.location.address}</span>
+                  <span>
+                    {report.location?.address ||
+                      (Array.isArray(report.location?.coordinates)
+                        ? `Lat: ${report.location.coordinates[1]}, Lng: ${report.location.coordinates[0]}`
+                        : "Non renseignée")}
+                  </span>
                 </div>
               </div>
               <div>
                 <h3 className="font-medium mb-2">Progression</h3>
-                <Progress value={calculateProgress()} className="h-2 mb-2" />
+                <Progress value={progressValue} className="h-2 mb-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Signalé</span>
                   <span>En cours</span>
@@ -270,11 +283,11 @@ export default function ReportDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {report.status_history.map((status, index) => (
-                  <div key={index} className="flex gap-4">
+                {(report.statusHistory || []).map((status, idx) => (
+                  <div key={idx} className="flex gap-4">
                     <div className="relative">
                       <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)}`} />
-                      {index < report.status_history.length - 1 && (
+                      {idx < (report.statusHistory.length - 1) && (
                         <div className="absolute top-4 left-1.5 w-1 h-full bg-muted-foreground/20" />
                       )}
                     </div>
@@ -297,17 +310,17 @@ export default function ReportDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 mb-4">
-                {report.comments.map((comment, index) => (
-                  <div key={index} className="flex gap-4">
+                {(report.comments || []).map((comment, idx) => (
+                  <div key={idx} className="flex gap-4">
                     <Avatar>
-                      <AvatarImage src={comment.author.image || "/placeholder.svg"} alt={comment.author.name} />
-                      <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={comment.author?.image || "/placeholder.svg"} alt={comment.author?.name || "?"} />
+                      <AvatarFallback>{comment.author?.name?.charAt(0) ?? "?"}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-medium">{comment.author.name}</h3>
-                          {comment.author.role === "authority" && (
+                          <h3 className="font-medium">{comment.author?.name ?? "Anonyme"}</h3>
+                          {comment.author?.role === "authority" && (
                             <Badge variant="outline" className="text-xs">
                               Autorité
                             </Badge>
@@ -320,7 +333,7 @@ export default function ReportDetailPage() {
                   </div>
                 ))}
               </div>
-
+              {/* Formulaire commentaire */}
               <form onSubmit={handleCommentSubmit}>
                 <div className="flex gap-4">
                   <Avatar>
@@ -347,6 +360,7 @@ export default function ReportDetailPage() {
           </Card>
         </div>
 
+        {/* ASIDE */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -357,17 +371,17 @@ export default function ReportDetailPage() {
                 <h3 className="text-sm font-medium text-muted-foreground">Signalé par</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <Avatar className="h-6 w-6">
-                    <AvatarImage src={report.citizen.image || "/placeholder.svg"} alt={report.citizen.name} />
-                    <AvatarFallback>{report.citizen.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={report.citizen?.image || "/placeholder.svg"} alt={report.citizen?.name} />
+                    <AvatarFallback>{report.citizen?.name?.charAt(0) ?? "?"}</AvatarFallback>
                   </Avatar>
-                  <span>{report.citizen.name}</span>
+                  <span>{report.citizen?.name ?? "Anonyme"}</span>
                 </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Date de création</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <Clock className="h-4 w-4" />
-                  <span>{formatDate(report.created_at)}</span>
+                  <span>{formatDate(report.timestamps?.createdAt || report.created_at)}</span>
                 </div>
               </div>
               <Separator />
@@ -376,59 +390,40 @@ export default function ReportDetailPage() {
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1">
                     <ThumbsUp className="h-4 w-4 text-green-500" />
-                    <span>{report.votes.confirmations} confirmations</span>
+                    <span>{report.engagement?.confirmations ?? 0} confirmations</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <ThumbsDown className="h-4 w-4 text-red-500" />
-                    <span>{report.votes.contestations} contestations</span>
+                    <span>{report.engagement?.contestations ?? 0} contestations</span>
                   </div>
+
                 </div>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button className="w-full" variant="default">
+              <Button className="w-full" variant="default" disabled={voting}
+                onClick={() => handleVote("confirm")}>
                 <ThumbsUp className="h-4 w-4 mr-2" />
                 Confirmer ce problème
               </Button>
-              {report.current_status === "Résolu" && (
+              <Button className="w-full" variant="outline" disabled={voting}
+                onClick={() => handleVote("contest")}>
+                <ThumbsDown className="h-4 w-4 mr-2" />
+                Contester ce problème
+              </Button>
+              {(report.status || report.current_status) === "Résolu" && (
                 <>
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full" variant="outline" disabled>
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Confirmer la résolution
                   </Button>
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full" variant="outline" disabled>
                     <XCircle className="h-4 w-4 mr-2" />
                     Contester la résolution
                   </Button>
                 </>
               )}
             </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Signalements similaires</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <a key={i} href={`/signalements/${i + 1}`} className="block p-3 border rounded-lg hover:bg-muted/50">
-                    <div className="flex justify-between items-start mb-1">
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <Lightbulb className="h-3 w-3" />
-                        Éclairage
-                      </Badge>
-                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                    </div>
-                    <h3 className="font-medium text-sm">Lampadaire défectueux - Rue {i + 10}</h3>
-                    <div className="flex items-center text-xs text-muted-foreground mt-1">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      <span className="truncate">À {i * 100}m</span>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </CardContent>
           </Card>
         </div>
       </div>

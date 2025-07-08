@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,80 +15,12 @@ import {
   Trash2,
   Shield,
   MapPin,
-  Clock,
-  MessageSquare,
-  ThumbsUp,
   Plus,
 } from "lucide-react"
 import Link from "next/link"
 
-// Données fictives pour les signalements de l'utilisateur
-const userReportsData = [
-  {
-    id: "1",
-    title: "Lampadaire cassé devant l'école",
-    category: "éclairage",
-    description: "Le lampadaire ne fonctionne plus depuis 3 jours",
-    location: "Rue des Écoles, Cotonou",
-    status: "Validé",
-    date: "2025-05-31",
-    comments: 3,
-    confirmations: 5,
-    priority: "Moyenne",
-  },
-  {
-    id: "2",
-    title: "Nid de poule dangereux",
-    category: "voirie",
-    description: "Un nid de poule profond qui cause des accidents",
-    location: "Avenue de la Liberté, Cotonou",
-    status: "Intervention en cours",
-    date: "2025-05-30",
-    comments: 7,
-    confirmations: 12,
-    priority: "Haute",
-  },
-  {
-    id: "3",
-    title: "Dépôt sauvage de déchets",
-    category: "déchets",
-    description: "Accumulation de déchets sur le trottoir",
-    location: "Marché Dantokpa, Cotonou",
-    status: "Résolu",
-    date: "2025-05-25",
-    comments: 2,
-    confirmations: 4,
-    priority: "Basse",
-  },
-  {
-    id: "4",
-    title: "Éclairage public défaillant",
-    category: "éclairage",
-    description: "Toute la rue est plongée dans l'obscurité la nuit",
-    location: "Quartier Zogbo, Cotonou",
-    status: "Assigné",
-    date: "2025-05-28",
-    comments: 5,
-    confirmations: 8,
-    priority: "Haute",
-  },
-  {
-    id: "5",
-    title: "Panneau de signalisation endommagé",
-    category: "sécurité",
-    description: "Le panneau stop est tombé après la tempête",
-    location: "Carrefour Ganhi, Cotonou",
-    status: "Signalé",
-    date: "2025-05-29",
-    comments: 1,
-    confirmations: 3,
-    priority: "Moyenne",
-  },
-]
-
-// Fonction pour obtenir l'icône de la catégorie
-const getCategoryIcon = (category: string) => {
-  switch (category.toLowerCase()) {
+const getCategoryIcon = (category) => {
+  switch ((category || "").toLowerCase()) {
     case "voirie":
       return <AlertTriangle className="h-4 w-4" />
     case "éclairage":
@@ -102,63 +34,86 @@ const getCategoryIcon = (category: string) => {
   }
 }
 
-// Fonction pour obtenir la couleur du statut
-const getStatusColor = (status: string) => {
+const getStatusColor = (status) => {
   switch (status) {
-    case "Signalé":
+    case "Signalé": case "reported":
       return "bg-yellow-500"
-    case "Validé":
+    case "Validé": case "validated":
       return "bg-blue-500"
-    case "Assigné":
+    case "Assigné": case "assigned":
       return "bg-purple-500"
-    case "Intervention en cours":
+    case "Intervention en cours": case "in_progress":
       return "bg-orange-500"
-    case "Terminé":
+    case "Terminé": case "completed":
       return "bg-green-500"
-    case "Résolu":
+    case "Résolu": case "resolved":
       return "bg-green-600"
-    case "Rejeté":
+    case "Rejeté": case "rejected":
       return "bg-red-500"
     default:
       return "bg-gray-500"
   }
 }
 
-// Fonction pour obtenir la couleur de la priorité
-const getPriorityColor = (priority: string) => {
+const getPriorityColor = (priority) => {
   switch (priority) {
-    case "Haute":
+    case "Haute": case "high":
       return "destructive"
-    case "Moyenne":
+    case "Moyenne": case "medium":
       return "default"
-    case "Basse":
+    case "Basse": case "low":
       return "secondary"
     default:
       return "outline"
   }
 }
 
+// Helper pour afficher location
+const displayLocation = (loc) => {
+  if (!loc) return "Non renseigné"
+  if (typeof loc === "string") return loc
+  if (loc.address) return loc.address
+  if (loc.coordinates) {
+    return `Lat: ${loc.coordinates[0]}, Lng: ${loc.coordinates[1]}`
+  }
+  return JSON.stringify(loc)
+}
+
 export default function MyReportsPage() {
-  const [reports] = useState(userReportsData)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [activeTab, setActiveTab] = useState("all")
+  const [reports, setReports] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    fetch("http://localhost:3001/api/reports?mine=true", {
+      headers: token ? { "Authorization": "Bearer " + token } : {}
+    })
+      .then(res => res.json())
+      .then(data => {
+        setReports(data)
+        setIsLoading(false)
+      })
+      .catch(() => setIsLoading(false))
+  }, [])
 
   // Filtrer les signalements
   const filteredReports = reports.filter((report) => {
-    const matchesSearch = report.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = (report.title || "").toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === "all" ? true : report.category === selectedCategory
     const matchesStatus = selectedStatus === "all" ? true : report.status === selectedStatus
     const matchesTab =
       activeTab === "all"
         ? true
         : activeTab === "active"
-          ? !["Résolu", "Rejeté"].includes(report.status)
+          ? !["Résolu", "resolved", "Rejeté", "rejected"].includes(report.status)
           : activeTab === "resolved"
-            ? report.status === "Résolu"
+            ? ["Résolu", "resolved"].includes(report.status)
             : activeTab === "rejected"
-              ? report.status === "Rejeté"
+              ? ["Rejeté", "rejected"].includes(report.status)
               : true
 
     return matchesSearch && matchesCategory && matchesStatus && matchesTab
@@ -167,9 +122,9 @@ export default function MyReportsPage() {
   // Statistiques
   const stats = {
     total: reports.length,
-    active: reports.filter((r) => !["Résolu", "Rejeté"].includes(r.status)).length,
-    resolved: reports.filter((r) => r.status === "Résolu").length,
-    rejected: reports.filter((r) => r.status === "Rejeté").length,
+    active: reports.filter((r) => !["Résolu", "resolved", "Rejeté", "rejected"].includes(r.status)).length,
+    resolved: reports.filter((r) => ["Résolu", "resolved"].includes(r.status)).length,
+    rejected: reports.filter((r) => ["Rejeté", "rejected"].includes(r.status)).length,
   }
 
   return (
@@ -287,7 +242,7 @@ export default function MyReportsPage() {
         </div>
 
         {/* Liste des signalements */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 ">
           <Card>
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
               <CardHeader className="pb-3">
@@ -307,13 +262,13 @@ export default function MyReportsPage() {
                   <div className="space-y-4">
                     {filteredReports.length > 0 ? (
                       filteredReports.map((report) => (
-                        <Link href={`/signalements/${report.id}`} key={report.id}>
-                          <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <Link href={`/signalements/${report._id || report.id}`} key={report._id || report.id}>
+                          <div className="p-4 mt-5 border rounded-lg hover:bg-muted/50 transition-colors">
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="flex items-center gap-1">
                                   {getCategoryIcon(report.category)}
-                                  {report.category.charAt(0).toUpperCase() + report.category.slice(1)}
+                                  {report.category?.charAt(0).toUpperCase() + report.category?.slice(1)}
                                 </Badge>
                                 <Badge variant={getPriorityColor(report.priority)}>{report.priority}</Badge>
                               </div>
@@ -326,25 +281,9 @@ export default function MyReportsPage() {
                             <h3 className="font-semibold text-lg mb-2">{report.title}</h3>
                             <p className="text-muted-foreground mb-3 line-clamp-2">{report.description}</p>
 
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center text-sm text-muted-foreground">
-                                <MapPin className="h-4 w-4 mr-1" />
-                                <span className="truncate">{report.location}</span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{report.date}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <MessageSquare className="h-3 w-3" />
-                                  <span>{report.comments}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <ThumbsUp className="h-3 w-3" />
-                                  <span>{report.confirmations}</span>
-                                </div>
-                              </div>
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <MapPin className="h-4 w-4 mr-1" />
+                              <span className="truncate">{displayLocation(report.location)}</span>
                             </div>
                           </div>
                         </Link>

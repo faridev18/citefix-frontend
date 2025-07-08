@@ -12,35 +12,85 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MapPin, LogIn, UserPlus, Mail } from "lucide-react"
 import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("connexion")
   const router = useRouter()
 
+  // Connexion
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+
+  // Inscription
+  const [registerName, setRegisterName] = useState("")
+  const [registerEmail, setRegisterEmail] = useState("")
+  const [registerPassword, setRegisterPassword] = useState("")
+  const [registerConfirm, setRegisterConfirm] = useState("")
+
+
   // Gérer la connexion
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Simuler une connexion
-    setTimeout(() => {
+    try {
+      const res = await fetch("http://localhost:3001/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        localStorage.setItem("token", data.token)
+        window.dispatchEvent(new Event("auth"))
+        toast.success("Connexion réussie !")
+        router.push("/mes-signalements")
+      } else {
+        toast.error(data.error || "Erreur de connexion")
+      }
+    } catch (err) {
+      toast.error("Erreur réseau")
+    } finally {
       setIsLoading(false)
-      router.push("/")
-    }, 1500)
+    }
   }
+
 
   // Gérer l'inscription
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Simuler une inscription
-    setTimeout(() => {
+    if (registerPassword !== registerConfirm) {
+      toast.error("Les mots de passe ne correspondent pas")
       setIsLoading(false)
-      setActiveTab("connexion")
-    }, 1500)
+      return
+    }
+    try {
+      const res = await fetch("http://localhost:3001/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: registerName,
+          email: registerEmail,
+          password: registerPassword
+        })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast("Votre compte a été créé !")
+
+        setActiveTab("connexion")
+      } else {
+        toast.error(data.error || "Erreur à l'inscription")
+      }
+    } catch (err) {
+      toast.error("Erreur réseau")
+    } finally {
+      setIsLoading(false)
+    }
   }
+
 
   // Gérer la réinitialisation du mot de passe
   const handleResetPassword = (e: React.FormEvent) => {
@@ -85,7 +135,14 @@ export default function AuthPage() {
                   <CardContent className="space-y-4 pt-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="exemple@email.com" required />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="exemple@email.com"
+                        required
+                        value={loginEmail}
+                        onChange={e => setLoginEmail(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -99,17 +156,15 @@ export default function AuthPage() {
                           Mot de passe oublié ?
                         </Button>
                       </div>
-                      <Input id="password" type="password" required />
+                      <Input
+                        id="password"
+                        type="password"
+                        required
+                        value={loginPassword}
+                        onChange={e => setLoginPassword(e.target.value)}
+                      />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="remember" />
-                      <label
-                        htmlFor="remember"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Se souvenir de moi
-                      </label>
-                    </div>
+                    
                   </CardContent>
                   <CardFooter>
                     <Button type="submit" className="w-full" disabled={isLoading}>
@@ -135,19 +190,44 @@ export default function AuthPage() {
                   <CardContent className="space-y-4 pt-4">
                     <div className="space-y-2">
                       <Label htmlFor="register-name">Nom complet</Label>
-                      <Input id="register-name" placeholder="Votre nom" required />
+                      <Input
+                        id="register-name"
+                        placeholder="Votre nom"
+                        required
+                        value={registerName}
+                        onChange={e => setRegisterName(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="register-email">Email</Label>
-                      <Input id="register-email" type="email" placeholder="exemple@email.com" required />
+                      <Input
+                        id="register-email"
+                        type="email"
+                        placeholder="exemple@email.com"
+                        required
+                        value={registerEmail}
+                        onChange={e => setRegisterEmail(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="register-password">Mot de passe</Label>
-                      <Input id="register-password" type="password" required />
+                      <Input
+                        id="register-password"
+                        type="password"
+                        required
+                        value={registerPassword}
+                        onChange={e => setRegisterPassword(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="register-confirm">Confirmer le mot de passe</Label>
-                      <Input id="register-confirm" type="password" required />
+                      <Input
+                        id="register-confirm"
+                        type="password"
+                        required
+                        value={registerConfirm}
+                        onChange={e => setRegisterConfirm(e.target.value)}
+                      />
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="terms" required />

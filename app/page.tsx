@@ -1,3 +1,4 @@
+"use client"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -6,8 +7,40 @@ import { MapPin, AlertTriangle, Lightbulb, Trash2, Shield, ArrowRight, CheckCirc
 import Image from "next/image"
 import RecentReports from "@/components/recent-reports"
 import StatsSection from "@/components/stats-section"
+import { useEffect, useState } from "react"
 
 export default function Home() {
+  const [recentReports, setRecentReports] = useState([])
+
+  const getCategoryIcon = (category) => {
+    switch ((category || "").toLowerCase()) {
+      case "voirie": return <AlertTriangle className="h-4 w-4" />
+      case "éclairage": return <Lightbulb className="h-4 w-4" />
+      case "déchets": return <Trash2 className="h-4 w-4" />
+      case "sécurité": return <Shield className="h-4 w-4" />
+      default: return <AlertTriangle className="h-4 w-4" />
+    }
+  }
+
+  const getPhotoUrl = (photo, baseUrl = "http://localhost:3001") => {
+    if (!photo || typeof photo !== "string") return "/placeholder.svg"
+    if (photo.startsWith("http")) return photo
+    if (photo.startsWith("/uploads/")) return baseUrl + photo
+    if (photo.startsWith("data:")) return photo
+    return "/placeholder.svg"
+  }
+
+
+  useEffect(() => {
+    fetch("http://localhost:3001/api/reports/public")
+      .then(res => res.json())
+      .then(data => {
+        // sécurise peu importe la structure
+        const array = Array.isArray(data) ? data : (data?.reports || data?.data || [])
+        setRecentReports(array.slice(0, 4))
+      })
+      .catch(() => setRecentReports([]))
+  }, [])
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -125,7 +158,7 @@ export default function Home() {
       </section>
 
       {/* Recent Reports */}
-      <section className="py-16 container m-auto">
+      <section className="py-16 my-16  container m-auto">
         <div className="flex justify-between gap-5 flex-wrap items-center mb-8">
           <h2 className="text-3xl font-bold">Signalements récents</h2>
           <Button variant="outline" asChild>
@@ -135,18 +168,62 @@ export default function Home() {
             </Link>
           </Button>
         </div>
-        <RecentReports />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          {recentReports.length === 0 ? (
+            <div className="text-muted-foreground col-span-full py-8 text-center">
+              Aucun signalement récent
+            </div>
+          ) : recentReports.map((report) => (
+            <Link
+              href={`/signalements/${report._id || report.id}`}
+              key={report._id || report.id}
+              className="hover:shadow-lg transition-shadow"
+              style={{ textDecoration: "none" }} // enlève le souligné sur mobile
+            >
+              <Card className="flex flex-col h-full cursor-pointer">
+                <CardContent className="flex-1 flex flex-col gap-2 p-4">
+                  {/* Image */}
+                  {report.media?.[0]?.url && (
+                    <div className="h-32 w-full rounded-md overflow-hidden mb-2">
+                      <img
+                        src={getPhotoUrl(report.media?.[0]?.url)}
+                        alt={report.title}
+                        width={320}
+                        height={128}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm mb-1">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      {getCategoryIcon(report.category)}
+                      {(report.category?.charAt(0).toUpperCase() ?? '') + (report.category?.slice(1) ?? '')}
+                    </Badge>
+                    <Badge variant="secondary">{report.status}</Badge>
+                  </div>
+                  <div className="font-bold text-base">{report.title}</div>
+                  <div className="text-muted-foreground line-clamp-2 text-sm">{report.description}</div>
+                  <div className="mt-auto text-xs text-muted-foreground opacity-70">
+                    {new Date(report.timestamps?.createdAt || report.createdAt).toLocaleDateString()}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+
       </section>
 
       {/* Stats */}
-      <section className="py-16 bg-primary/10">
+      {/* <section className="py-16 bg-primary/10">
         <div className="container m-auto">
           <StatsSection />
         </div>
-      </section>
+      </section> */}
 
       {/* CTA */}
-      <section className="py-16 container m-auto">
+      <section className="my-16 container m-auto">
         <div className="bg-primary rounded-lg p-8 md:p-12 text-primary-foreground text-center">
           <h2 className="text-3xl font-bold mb-4">Prêt à améliorer votre quartier ?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">

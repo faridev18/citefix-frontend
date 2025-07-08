@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useRef } from "react"
 import L from 'leaflet'
 
@@ -8,7 +6,7 @@ interface Report {
   title: string
   category: string
   status: string
-  location: number[] // Changé pour accepter number[] au lieu de tuple strict
+  location: number[]
 }
 
 const createCustomIcon = (color: string) => {
@@ -43,15 +41,18 @@ const createCustomIcon = (color: string) => {
 export default function MapComponent({ 
   reports = [], 
   center = [48.8566, 2.3522],
-  zoom = 13 
+  zoom = 13,
+  onLocationChange
 }: {
   reports: Report[]
   center?: [number, number]
   zoom?: number
+  onLocationChange?: (coords: [number, number]) => void
 }) {
   const mapRef = useRef<L.Map | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const initializedRef = useRef(false)
+  const tempMarkerRef = useRef<L.Marker | null>(null)
 
   // Initialize map
   useEffect(() => {
@@ -70,6 +71,24 @@ export default function MapComponent({
 
     mapRef.current = map
 
+    // Ecoute le click sur la carte
+    map.on("click", function (e: L.LeafletMouseEvent) {
+      if (!onLocationChange) return
+
+      // Ajoute/maj marker temporaire
+      if (tempMarkerRef.current) {
+        tempMarkerRef.current.setLatLng(e.latlng)
+      } else {
+        tempMarkerRef.current = L.marker(e.latlng, {
+          icon: createCustomIcon("#6366f1"),
+          title: "Emplacement sélectionné"
+        }).addTo(map)
+      }
+
+      // Remonte les coordonnées
+      onLocationChange([e.latlng.lat, e.latlng.lng])
+    })
+
     const handleResize = () => {
       map.invalidateSize()
     }
@@ -80,8 +99,9 @@ export default function MapComponent({
       map.remove()
       mapRef.current = null
       initializedRef.current = false
+      tempMarkerRef.current = null
     }
-  }, [center, zoom])
+  }, [center, zoom, onLocationChange])
 
   // Add markers to map
   useEffect(() => {
@@ -91,7 +111,7 @@ export default function MapComponent({
 
     reports.forEach(report => {
       const [lng, lat] = report.location
-      const isResolved = ['Résolu', 'Terminé'].includes(report.status)
+      const isResolved = ['Résolu', 'Terminé', 'resolved', 'completed'].includes(report.status)
       const color = isResolved ? '#10b981' : '#ef4444'
       
       const marker = L.marker([lat, lng], {
@@ -140,6 +160,10 @@ export default function MapComponent({
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded-full" />
           <span>Signalements résolus</span>
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="w-3 h-3 bg-indigo-500 rounded-full" />
+          <span>Position choisie</span>
         </div>
       </div>
     </div>
